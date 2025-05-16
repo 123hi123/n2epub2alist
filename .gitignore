@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+env/
+build/
+dist/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 日誌和資料庫文件
+*.log
+*.db
+
+# 下載的內容和臨時文件
+output/nh/**
+!output/nh/.gitkeep
+output/nh_info/**
+!output/nh_info/.gitkeep
+temp/**
+!temp/.gitkeep
+
+# 編輯器配置
+.vscode/
+.idea/
+*.swp
+*.swo

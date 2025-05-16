@@ -1,0 +1,8 @@
+# 每天凌晨3點清理超過3天的臨時檔案
+0 3 * * * find /app/output/nh/temp -type d -mtime +3 -exec rm -rf {} \; 2>/dev/null || true
+
+# 每6小時嘗試恢復失敗的下載
+0 */6 * * * cd /app && python miss_upload.py >> /app/cron_cleanup.log 2>&1
+
+# 記錄空間使用情況
+0 0 * * * du -sh /app/output/nh /app/temp >> /app/space_usage.log 2>&1 

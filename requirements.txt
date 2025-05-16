@@ -1,0 +1,7 @@
+feedparser
+requests
+ebooklib
+pillow
+beautifulsoup4
+lxml
+markdown 

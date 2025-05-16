@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系統管理 - link2epub</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+            padding: 48px 0 0;
+            box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+        }
+
+        .sidebar-sticky {
+            position: relative;
+            top: 0;
+            height: calc(100vh - 48px);
+            padding-top: 0.5rem;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
+        .nav-link {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .nav-link.active {
+            color: #007bff;
+        }
+
+        main {
+            padding-top: 48px;
+        }
+        
+        .system-info {
+            font-family: monospace;
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+        
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+    </style>
+</head>
+<body>
+    <header class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
+        <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3 fs-6" href="#">link2epub</a>
+        <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="navbar-nav">
+            <div class="nav-item text-nowrap">
+                <a class="nav-link px-3" href="{{ url_for('logout') }}">登出</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container-fluid">
+        <div class="row">
+            <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+                <div class="position-sticky pt-3 sidebar-sticky">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('index') }}">
+                                <i class="bi bi-house me-2"></i>控制面板
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('rss_management') }}">
+                                <i class="bi bi-rss me-2"></i>RSS管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('download_management') }}">
+                                <i class="bi bi-download me-2"></i>下載管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="{{ url_for('system_management') }}">
+                                <i class="bi bi-gear me-2"></i>系統管理
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">系統管理</h1>
+                </div>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}" role="alert">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>磁碟使用情況</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="system-info">{{ disk_usage }}</div>
+                                <hr>
+                                <h6>目錄大小</h6>
+                                <div class="mb-2"><strong>臨時目錄大小：</strong> <code>{{ temp_size }}</code></div>
+                                <div class="mb-2"><strong>輸出目錄大小：</strong> <code>{{ output_size }}</code></div>
+                            </div>
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>環境信息</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-2"><strong>Docker容器：</strong> link2epub</div>
+                                <div class="mb-2"><strong>版本：</strong> 1.0</div>
+                                <div class="mb-2"><strong>管理員用戶：</strong> {{ admin_username }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>維護操作</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-4">
+                                    <h6>清理臨時文件</h6>
+                                    <p>清理指定天數以前的臨時文件，釋放磁碟空間</p>
+                                    <form action="{{ url_for('clean_temp') }}" method="post">
+                                        <div class="input-group mb-3">
+                                            <input type="number" class="form-control" name="days" value="3" min="1" max="30">
+                                            <span class="input-group-text">天</span>
+                                            <button type="submit" class="btn btn-warning">清理</button>
+                                        </div>
+                                    </form>
+                                </div>
+                                
+                                <hr>
+                                
+                                <div class="mb-4">
+                                    <h6>自動維護任務</h6>
+                                    <ul class="list-group">
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            每天凌晨3點清理超過3天的臨時文件
+                                            <span class="badge bg-success rounded-pill">啟用</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            每6小時嘗試恢復失敗的下載
+                                            <span class="badge bg-success rounded-pill">啟用</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            每天記錄磁碟空間使用情況
+                                            <span class="badge bg-success rounded-pill">啟用</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>幫助 & 資源</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>link2epub 是一個將 nhentai 內容下載並轉換為 EPUB 電子書的工具。支援 RSS 批量下載，可選擇直接使用外部圖片連結或下載圖片，還可以自動上傳到 AList 伺服器。</p>
+                                <p>Docker 映像資訊：</p>
+                                <ul>
+                                    <li>映像名稱：<code>link2epub</code></li>
+                                    <li>預設管理員帳號：由環境變數設定，預設為 <code>admin</code></li>
+                                    <li>預設管理員密碼：由環境變數設定，預設為 <code>admin123</code></li>
+                                </ul>
+                                <p>Docker 運行指令參考：</p>
+                                <pre class="system-info">docker run -d --name link2epub -p 5000:5000 -e ADMIN_USERNAME=admin -e ADMIN_PASSWORD=admin123 -v /your/path/data:/app/output link2epub:latest</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 

@@ -1,0 +1,29 @@
+version: '3'
+
+services:
+  link2epub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: link2epub:latest
+    container_name: link2epub
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/output
+      - ./nhentai_rss.opml:/app/nhentai_rss.opml:ro
+    environment:
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=admin123
+      - SECRET_KEY=link2epub-secret-key
+      # AList 設定（請修改為您的實際配置）
+      - ALIST_BASE=http://your-alist-server
+      - ALIST_USERNAME=your_username
+      - ALIST_PASSWORD=your_password
+      - ALIST_REMOTE_DIR=/book/nh
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 1m
+      timeout: 10s
+      retries: 3 

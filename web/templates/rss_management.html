@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSS管理 - link2epub</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+            padding: 48px 0 0;
+            box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+        }
+
+        .sidebar-sticky {
+            position: relative;
+            top: 0;
+            height: calc(100vh - 48px);
+            padding-top: 0.5rem;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
+        .nav-link {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .nav-link.active {
+            color: #007bff;
+        }
+
+        main {
+            padding-top: 48px;
+        }
+        
+        .tag-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .tag-item {
+            cursor: pointer;
+            padding: 5px 10px;
+            margin: 2px;
+            display: inline-block;
+            background-color: #e9ecef;
+            border-radius: 3px;
+            font-size: 0.85rem;
+        }
+        
+        .tag-item:hover {
+            background-color: #dee2e6;
+        }
+    </style>
+</head>
+<body>
+    <header class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
+        <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3 fs-6" href="#">link2epub</a>
+        <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="navbar-nav">
+            <div class="nav-item text-nowrap">
+                <a class="nav-link px-3" href="{{ url_for('logout') }}">登出</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container-fluid">
+        <div class="row">
+            <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+                <div class="position-sticky pt-3 sidebar-sticky">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('index') }}">
+                                <i class="bi bi-house me-2"></i>控制面板
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="{{ url_for('rss_management') }}">
+                                <i class="bi bi-rss me-2"></i>RSS管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('download_management') }}">
+                                <i class="bi bi-download me-2"></i>下載管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('system_management') }}">
+                                <i class="bi bi-gear me-2"></i>系統管理
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">RSS管理</h1>
+                </div>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}" role="alert">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>添加RSS訂閱</h5>
+                            </div>
+                            <div class="card-body">
+                                <form method="POST" id="rssForm">
+                                    {{ form.hidden_tag() }}
+                                    <div class="mb-3">
+                                        {{ form.title.label(class="form-label") }}
+                                        {{ form.title(class="form-control") }}
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ form.url.label(class="form-label") }}
+                                        <div class="input-group">
+                                            {{ form.url(class="form-control") }}
+                                            <button type="button" class="btn btn-outline-secondary" id="checkRssBtn">檢查</button>
+                                        </div>
+                                        <div id="rssStatus" class="form-text mt-2"></div>
+                                        <div id="rssTags" class="mt-2"></div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">添加</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>常用標籤</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="tag-list">
+                                    {% for tag, translation in chinese_tags.items() %}
+                                        <span class="tag-item" onclick="addTagToUrl('{{ tag }}')">{{ translation }} ({{ tag }})</span>
+                                    {% endfor %}
+                                </div>
+                                <hr>
+                                <div class="mt-3">
+                                    <p>點擊標籤添加到RSS URL</p>
+                                    <p><small>RSS URL格式示例: <code>https://rsshub.example.com/nhentai/search/chinese+uncensored/detail</code></small></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h2>現有訂閱</h2>
+                <div class="table-responsive">
+                    <table class="table table-striped table-sm">
+                        <thead>
+                            <tr>
+                                <th>標題</th>
+                                <th>URL</th>
+                                <th width="150">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for source in rss_sources %}
+                            <tr>
+                                <td>{{ source.title }}</td>
+                                <td><small>{{ source.url }}</small></td>
+                                <td>
+                                    <a href="{{ source.html_url }}" target="_blank" class="btn btn-sm btn-outline-info">
+                                        <i class="bi bi-link-45deg"></i>
+                                    </a>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteRss('{{ source.url }}')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center">尚未添加RSS源</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <form id="deleteForm" method="POST" style="display: none;"></form>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function deleteRss(url) {
+            if (confirm("確定要刪除此RSS源?")) {
+                const form = document.getElementById('deleteForm');
+                form.action = `/rss/delete/${encodeURIComponent(url)}`;
+                form.submit();
+            }
+        }
+        
+        function addTagToUrl(tag) {
+            const urlInput = document.getElementById('url');
+            const currentUrl = urlInput.value;
+            
+            // 提取搜索查詢部分
+            const match = currentUrl.match(/\/search\/([^\/]+)\/detail/);
+            
+            if (match) {
+                // 已有搜索查詢，添加標籤
+                const searchQuery = match[1];
+                const newQuery = searchQuery + '+' + tag;
+                const newUrl = currentUrl.replace(/\/search\/([^\/]+)\/detail/, `/search/${newQuery}/detail`);
+                urlInput.value = newUrl;
+            } else if (currentUrl.includes('/nhentai/')) {
+                // 有nhentai但無搜索查詢
+                const newUrl = currentUrl.replace('/nhentai/', `/nhentai/search/${tag}/`);
+                urlInput.value = newUrl;
+            } else {
+                // 創建新的URL
+                urlInput.value = `https://rsshub.example.com/nhentai/search/${tag}/detail`;
+            }
+        }
+        
+        document.getElementById('checkRssBtn').addEventListener('click', function() {
+            const url = document.getElementById('url').value;
+            const statusDiv = document.getElementById('rssStatus');
+            const tagsDiv = document.getElementById('rssTags');
+            
+            if (!url) {
+                statusDiv.innerHTML = '<span class="text-danger">請輸入RSS URL</span>';
+                return;
+            }
+            
+            statusDiv.innerHTML = '<span class="text-info">檢查中...</span>';
+            tagsDiv.innerHTML = '';
+            
+            fetch('/api/check-rss', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({url: url}),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.valid) {
+                    statusDiv.innerHTML = '<span class="text-success">✓ RSS源有效</span>';
+                    
+                    if (data.tags && data.tags.length > 0) {
+                        tagsDiv.innerHTML = '<div><strong>檢測到的標籤：</strong> ' + 
+                            data.tags.map(tag => `<span class="badge bg-info">${tag}</span>`).join(' ') +
+                            '</div>';
+                    }
+                } else {
+                    statusDiv.innerHTML = `<span class="text-danger">✗ ${data.message}</span>`;
+                }
+            })
+            .catch(error => {
+                statusDiv.innerHTML = '<span class="text-danger">檢查失敗，請稍後重試</span>';
+                console.error('Error:', error);
+            });
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>下載管理 - link2epub</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+            padding: 48px 0 0;
+            box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+        }
+
+        .sidebar-sticky {
+            position: relative;
+            top: 0;
+            height: calc(100vh - 48px);
+            padding-top: 0.5rem;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
+        .nav-link {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .nav-link.active {
+            color: #007bff;
+        }
+
+        main {
+            padding-top: 48px;
+        }
+        
+        .progress {
+            height: 8px;
+            margin-top: 5px;
+        }
+        
+        .truncate {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <header class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
+        <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3 fs-6" href="#">link2epub</a>
+        <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="navbar-nav">
+            <div class="nav-item text-nowrap">
+                <a class="nav-link px-3" href="{{ url_for('logout') }}">登出</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container-fluid">
+        <div class="row">
+            <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+                <div class="position-sticky pt-3 sidebar-sticky">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('index') }}">
+                                <i class="bi bi-house me-2"></i>控制面板
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('rss_management') }}">
+                                <i class="bi bi-rss me-2"></i>RSS管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="{{ url_for('download_management') }}">
+                                <i class="bi bi-download me-2"></i>下載管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('system_management') }}">
+                                <i class="bi bi-gear me-2"></i>系統管理
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">下載管理</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <button class="btn btn-sm btn-primary me-2" data-bs-toggle="modal" data-bs-target="#startDownloadModal">
+                            <i class="bi bi-cloud-download"></i> 開始下載
+                        </button>
+                    </div>
+                </div>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}" role="alert">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <h2 class="mt-4">臨時文件狀態</h2>
+                <div class="table-responsive">
+                    <table class="table table-striped table-sm">
+                        <thead>
+                            <tr>
+                                <th>URL</th>
+                                <th>臨時目錄</th>
+                                <th>狀態</th>
+                                <th>創建時間</th>
+                                <th>完成時間</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in temp_files %}
+                            <tr>
+                                <td class="truncate">{{ item.item_url }}</td>
+                                <td><small>{{ item.temp_dir }}</small></td>
+                                <td>
+                                    {% if item.status == 'processing' %}
+                                    <span class="badge bg-primary">處理中</span>
+                                    <div class="progress">
+                                        <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 75%"></div>
+                                    </div>
+                                    {% elif item.status == 'completed' %}
+                                    <span class="badge bg-success">已完成</span>
+                                    {% elif item.status == 'failed' %}
+                                    <span class="badge bg-danger">失敗</span>
+                                    <span class="d-block small text-danger">{{ item.error_message }}</span>
+                                    {% elif item.status == 'pending_recovery' %}
+                                    <span class="badge bg-warning text-dark">待恢復</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ item.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td><small>{{ item.created_time }}</small></td>
+                                <td><small>{{ item.completed_time }}</small></td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center">無臨時文件記錄</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2 class="mt-4">下載歷史</h2>
+                <div class="table-responsive">
+                    <table class="table table-striped table-sm">
+                        <thead>
+                            <tr>
+                                <th>標題</th>
+                                <th>來源</th>
+                                <th>下載日期</th>
+                                <th>狀態</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in download_history %}
+                            <tr>
+                                <td class="truncate">{{ item.title }}</td>
+                                <td><small>{{ item.rss_source }}</small></td>
+                                <td><small>{{ item.download_date }}</small></td>
+                                <td>
+                                    {% if item.uploaded == 1 %}
+                                    <span class="badge bg-success">已上傳</span>
+                                    {% else %}
+                                    <span class="badge bg-warning text-dark">待上傳</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('download_epub', download_id=item.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-download"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center">尚無下載記錄</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- 開始下載模態框 -->
+    <div class="modal fade" id="startDownloadModal" tabindex="-1" aria-labelledby="startDownloadModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="startDownloadModalLabel">下載設置</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="{{ url_for('start_download') }}" method="post">
+                    <div class="modal-body">
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="externalLinks" name="external_links" value="true">
+                            <label class="form-check-label" for="externalLinks">使用外部圖片連結（不下載圖片）</label>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="uploadToAlist" name="upload" value="true" checked>
+                            <label class="form-check-label" for="uploadToAlist">上傳到AList伺服器</label>
+                        </div>
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> 下載任務將在後台執行，可以在本頁面查看進度。
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-primary">開始下載</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 
